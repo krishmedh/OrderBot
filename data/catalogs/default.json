@@ -1,0 +1,4 @@
+[
+  {"sku": "RICE-1KG", "name": "Rice 1kg", "quantity_available": 100, "price": 65.0},
+  {"sku": "TEA-500G", "name": "Tea 500g", "quantity_available": 60, "price": 210.0}
+]

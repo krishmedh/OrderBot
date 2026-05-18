@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Store Chat</title>
+    <link rel="stylesheet" href="/chat/assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="chat-frame">
+        <header class="chat-header">
+          <div class="avatar" aria-hidden="true">🛒</div>
+          <div class="header-text">
+            <h1 id="storeTitle">Store North</h1>
+            <p id="storeSubtitle">Online · test chat</p>
+          </div>
+          <div class="header-settings">
+            <button type="button" class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
+            <div class="settings-panel" id="settingsPanel">
+              <label for="phoneInput">Your phone (for session)</label>
+              <input type="text" id="phoneInput" placeholder="+919876543210" />
+              <label for="storeSelect">Store</label>
+              <select id="storeSelect">
+                <option value="store_north">store_north</option>
+                <option value="default">default</option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <main class="messages" id="messages" aria-live="polite">
+          <div class="welcome">
+            <strong>Welcome</strong><br />
+            Chat with your store assistant. Try <em>menu</em>, ask about products, or say
+            <em>Do you have sugar?</em> then <em>yes</em> to add to cart.
+          </div>
+        </main>
+
+        <div class="typing" id="typing" aria-hidden="true">
+          <div class="msg-row in">
+            <div class="bubble typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="composer">
+          <textarea
+            id="messageInput"
+            rows="1"
+            placeholder="Type a message"
+            aria-label="Message"
+          ></textarea>
+          <button type="button" class="send-btn" id="sendBtn" title="Send">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          </button>
+        </footer>
+      </div>
+    </div>
+    <script src="/chat/assets/app.js"></script>
+  </body>
+</html>
