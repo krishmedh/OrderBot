@@ -1,4 +1,8 @@
 {
-  "by_phone_number_id": {},
-  "by_display_phone_digits": {}
+  "by_phone_number_id": {
+    "1147536085109867": "store_north"
+  },
+  "by_display_phone_digits": {
+    "15556350761": "store_north"
+  }
 }

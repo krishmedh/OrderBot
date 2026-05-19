@@ -6,12 +6,14 @@ import pytest
 
 from app.domain.intent_classification import IntentEntities
 from app.services.multi_item_cart import (
+    CartItemRequest,
     build_cart_requests_from_entities,
     catalog_pack_size_token,
     clause_to_cart_request,
     customer_quantity_specified,
     implies_single_catalog_pack,
     pair_items_and_quantities,
+    quantity_selects_product_variant,
     reply_matches_catalog_pack_size,
     split_comma_separated_cart_message,
 )
@@ -83,6 +85,13 @@ def test_honey_clause_has_no_quantity() -> None:
     req = clause_to_cart_request("honey")
     assert req.item == "honey"
     assert not customer_quantity_specified(req)
+
+
+def test_quantity_selects_atta_5kg_variant() -> None:
+    assert quantity_selects_product_variant("5 kg", "Wheat flour (atta) 5kg", "ATTA-5KG")
+    assert quantity_selects_product_variant("5kg", "Wheat flour (atta) 5kg", "ATTA-5KG")
+    assert not quantity_selects_product_variant("5 kg", "Wheat flour (atta) 1kg", "ATTA-1KG")
+    assert quantity_selects_product_variant("1 kg", "Wheat flour (atta) 1kg", "ATTA-1KG")
 
 
 def test_build_from_comma_text() -> None:
@@ -167,6 +176,38 @@ def test_missing_honey_quantity_prompts(bulk_orch: CommerceOrchestrator) -> None
     assert done is not None
     assert "Honey" in done["reply"] or "honey" in done["reply"].lower()
     assert "Sunflower" in done["reply"]
+
+
+def test_atta_5kg_disambiguates_from_wheat_flour(bulk_orch: CommerceOrchestrator) -> None:
+    root = Path(tempfile.mkdtemp()) / "atta_catalogs"
+    root.mkdir(parents=True)
+    catalog = [
+        {"sku": "ATTA-1KG", "name": "Wheat flour (atta) 1kg", "quantity_available": 90, "price": 42.0},
+        {"sku": "ATTA-5KG", "name": "Wheat flour (atta) 5kg", "quantity_available": 35, "price": 195.0},
+    ]
+    (root / "north.json").write_text(json.dumps(catalog), encoding="utf-8")
+    locator = StoreInventoryLocator(root, "default", fallback=InMemoryInventoryRepository())
+    orch = CommerceOrchestrator(
+        inventory_service=InventoryService(locator),
+        order_service=OrderService(locator, InMemoryOrderRepository()),
+        payment_service=PaymentService(InMemoryOrderRepository(), FakePaymentGateway()),
+        qa_service=QAService(FakeQAProvider()),
+        audio_service=AudioService(FakeSpeechToTextProvider()),
+        promotion_service=PromotionService(FakeWhatsAppGateway()),
+    )
+    phone = "+919900000102"
+    sid = "north"
+    req = CartItemRequest(item="wheat flour", quantity="5 kg", search_phrase="wheat flour 5 kg")
+    product, amb = orch._resolve_product_for_cart_request(sid, req)
+    assert product is not None
+    assert product.sku == "ATTA-5KG"
+    assert not amb
+
+    result = orch.add_cart_lines(phone, sid, [req])
+    assert result is not None
+    assert "Wheat flour (atta) 5kg" in result["reply"]
+    assert "195.00" in result["reply"]
+    assert "several products" not in result["reply"].lower()
 
 
 def test_cling_wrap_list_then_30m_reply(bulk_orch: CommerceOrchestrator) -> None:

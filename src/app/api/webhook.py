@@ -74,8 +74,14 @@ def create_router(
                 if not wa_from:
                     continue
                 metadata = value.get("metadata") or {}
+                phone_number_id = str(metadata.get("phone_number_id") or "").strip()
                 store_id = resolve_store_id(metadata, store_routing, default_store_id)
-                logger.info("WhatsApp webhook inbound: %s", _summarize_meta_message(msg))
+                logger.info(
+                    "WhatsApp webhook inbound: %s phone_number_id=%s store_id=%s",
+                    _summarize_meta_message(msg),
+                    phone_number_id or "?",
+                    store_id,
+                )
                 payload = message_to_orchestrator_payload(wa_from, msg, store_id)
                 logger.info(
                     "WhatsApp webhook mapped intent=%s phone=%s keys=%s",
@@ -99,8 +105,15 @@ def create_router(
                 if reply_text:
                     preview = reply_text[:400] + ("…" if len(reply_text) > 400 else "")
                     logger.info("WhatsApp webhook outbound preview to=%s: %s", wa_from, preview)
+                    send_kw = (
+                        {"from_phone_number_id": phone_number_id}
+                        if phone_number_id
+                        else {}
+                    )
                     try:
-                        whatsapp_gateway.send_message(wa_from, reply_text[:4096])
+                        whatsapp_gateway.send_message(
+                            wa_from, reply_text[:4096], **send_kw
+                        )
                     except Exception:
                         logger.exception("WhatsApp send_message failed for to=%s", wa_from)
                 for img in (result.get("images") or [])[:3]:
@@ -109,6 +122,7 @@ def create_router(
                             wa_from,
                             img["url"],
                             img.get("caption") or "",
+                            **send_kw,
                         )
                     except Exception:
                         logger.exception(

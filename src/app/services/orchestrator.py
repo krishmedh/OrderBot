@@ -299,21 +299,32 @@ class CommerceOrchestrator:
         phrase = (req.search_phrase or req.item or "").strip()
         product, amb = self._resolve_product_for_phrase(store_id, phrase)
         qty = (req.quantity or "").strip()
-        if not qty or not re.fullmatch(r"\d+(?:\.\d+)?", qty):
+        if not qty:
             return product, amb
+
         item_key = req.item.strip()
         candidates = list(amb) if amb else ([product] if product else [])
         if product and not quantity_selects_product_variant(qty, product.name, product.sku):
-            broader = self.inventory_service.catalog_matches(store_id, item_key)
+            broader = self.inventory_service.catalog_matches(store_id, item_key or phrase)
             for p in broader:
                 if p.sku not in {c.sku for c in candidates}:
                     candidates.append(p)
+        if not candidates and item_key:
+            candidates = self.inventory_service.catalog_matches(store_id, item_key)
+
         for p in candidates:
             if quantity_selects_product_variant(qty, p.name, p.sku):
                 return p, []
-        picked = pick_product_from_message(f"{item_key} {qty}", candidates)
+        disambig = f"{item_key} {qty}".strip() if item_key else phrase
+        picked = pick_product_from_message(disambig, candidates) or pick_product_from_message(
+            phrase, candidates
+        )
         if picked:
             return picked, []
+        if len(candidates) == 1:
+            return candidates[0], []
+        if len(candidates) > 1:
+            return None, candidates
         return product, amb
 
     def _append_product_line(
@@ -453,6 +464,7 @@ class CommerceOrchestrator:
         added: list[tuple[str, float, str]] = list(added_so_far or [])
         not_found: list[str] = []
         ambiguous: list[tuple[str, str]] = []
+        ambiguous_products: list[Product] = []
         stock_errors: list[str] = []
         image_products: list[Product] = []
         awaiting_quantity: list[tuple[CartItemRequest, Product]] = []
@@ -466,6 +478,8 @@ class CommerceOrchestrator:
             if amb:
                 opts = ", ".join(p.name for p in amb[:4])
                 ambiguous.append((phrase, opts))
+                if len(amb) >= 2:
+                    ambiguous_products = list(amb)
                 continue
             if not product:
                 not_found.append(req.item or phrase)
@@ -526,6 +540,8 @@ class CommerceOrchestrator:
 
         if not added and not stock_errors:
             if ambiguous and not not_found:
+                if ambiguous_products:
+                    sess.pending_options = ambiguous_products
                 lines = "\n".join(f'• "{p}": {o}' for p, o in ambiguous)
                 return {
                     "reply": (
@@ -538,7 +554,10 @@ class CommerceOrchestrator:
             return None
 
         sess.pending_single = None
-        sess.pending_options = None
+        if ambiguous_products:
+            sess.pending_options = ambiguous_products
+        elif not ambiguous:
+            sess.pending_options = None
         sess.pending_quantity_batch = None
         tot = cart_total_inr(sess.cart)
         if len(added) == 1 and not not_found and not ambiguous:

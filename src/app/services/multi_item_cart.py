@@ -114,22 +114,85 @@ def implies_single_catalog_pack(product_name: str, sku: str, item_label: str) ->
     return bool(words) and all(w in name_l for w in words)
 
 
+def _variant_size_tokens(quantity: str) -> list[str]:
+    """Compact size keys for matching catalogue packs, e.g. ``5kg`` from ``5 kg``."""
+    q = (quantity or "").strip().lower()
+    if not q:
+        return []
+    if re.fullmatch(r"\d+(?:\.\d+)?", q):
+        return [q]
+
+    m = _SIZE_IN_TEXT.search(q)
+    if not m:
+        m = _SIZE_GLUED.search(q)
+    if not m:
+        return []
+
+    val = m.group(1)
+    unit = m.group(2).lower().rstrip(".")
+    unit = {
+        "kgs": "kg",
+        "kilograms": "kg",
+        "kilogram": "kg",
+        "grams": "g",
+        "gram": "g",
+        "gm": "g",
+        "gms": "g",
+        "liters": "l",
+        "litres": "l",
+        "liter": "l",
+        "litre": "l",
+        "ltr": "l",
+    }.get(unit, unit)
+    compact = f"{val}{unit}"
+    spaced = f"{val} {unit}"
+    return [compact, spaced] if compact != spaced else [compact]
+
+
 def quantity_selects_product_variant(quantity: str, product_name: str, sku: str) -> bool:
-    """Digit quantity names the catalogue pack (e.g. eggs + ``12`` → Eggs (12 pieces))."""
+    """Quantity names the catalogue pack (eggs ``12``, atta ``5 kg`` → 5kg SKU)."""
     q = (quantity or "").strip()
-    if not q or not re.fullmatch(r"\d+(?:\.\d+)?", q):
+    if not q:
         return False
-    q_int = q.split(".", 1)[0]
+
     name_l = (product_name or "").lower()
+    name_compact = re.sub(r"\s+", "", name_l)
     sku_u = (sku or "").upper()
-    return (
-        sku_u.endswith(f"-{q_int}")
-        or f"-{q_int}" in sku_u
-        or f"({q_int} " in name_l
-        or f"({q} " in name_l
-        or f"{q_int} pieces" in name_l
-        or f"{q_int} piece" in name_l
-    )
+    sku_compact = re.sub(r"[^A-Z0-9]", "", sku_u)
+
+    tokens = _variant_size_tokens(q)
+    if not tokens:
+        return False
+
+    for tok in tokens:
+        tok_compact = re.sub(r"\s+", "", tok.lower())
+        if tok_compact and tok_compact in name_compact:
+            return True
+
+        if not re.fullmatch(r"\d+(?:\.\d+)?", tok):
+            num_m = re.match(r"^(\d+(?:\.\d+)?)", tok_compact)
+            if not num_m:
+                continue
+            num = num_m.group(1)
+            unit = tok_compact[len(num) :]
+            if unit and (
+                sku_u.endswith(f"-{num}{unit.upper()}")
+                or sku_compact.endswith(f"{num}{unit.upper()}")
+            ):
+                return True
+            continue
+
+        q_int = tok.split(".", 1)[0]
+        if (
+            sku_u.endswith(f"-{q_int}")
+            or f"-{q_int}" in sku_u
+            or f"({q_int} " in name_l
+            or f"({tok} " in name_l
+            or f"{q_int} pieces" in name_l
+            or f"{q_int} piece" in name_l
+        ):
+            return True
+    return False
 
 
 def intent_quantity_is_variant_only(req: CartItemRequest, product_name: str, sku: str) -> bool:

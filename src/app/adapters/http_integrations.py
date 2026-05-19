@@ -65,37 +65,71 @@ class WhatsAppCloudGateway(WhatsAppGateway):
     def __init__(self, access_token: str, phone_number_id: str, api_version: str = "v19.0") -> None:
         self.access_token = access_token
         self.phone_number_id = phone_number_id
-        self.base_url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
+        self.api_version = api_version
+
+    def _messages_url(self, phone_number_id: str | None = None) -> str:
+        pnid = (phone_number_id or self.phone_number_id or "").strip()
+        return f"https://graph.facebook.com/{self.api_version}/{pnid}/messages"
 
     @staticmethod
     def _recipient_digits(phone: str) -> str:
         digits = "".join(c for c in phone if c.isdigit())
         return digits if digits else phone
 
-    def _send_text(self, phone: str, text: str) -> None:
+    def _send_text(
+        self,
+        phone: str,
+        text: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
         to_id = self._recipient_digits(phone)
+        pnid = (from_phone_number_id or self.phone_number_id or "").strip()
         payload = {
             "messaging_product": "whatsapp",
             "to": to_id,
             "type": "text",
             "text": {"body": text},
         }
-        response = httpx.post(self.base_url, headers=headers, json=payload, timeout=20.0)
+        url = self._messages_url(pnid)
+        response = httpx.post(url, headers=headers, json=payload, timeout=20.0)
+        if response.is_error:
+            logger.error(
+                "WhatsApp Graph API send failed status=%s phone_number_id=%s to=%s body=%s",
+                response.status_code,
+                pnid,
+                to_id,
+                response.text[:2000],
+            )
         response.raise_for_status()
 
-    def send_message(self, phone: str, text: str) -> None:
-        self._send_text(phone, text)
+    def send_message(
+        self,
+        phone: str,
+        text: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
+        self._send_text(phone, text, from_phone_number_id=from_phone_number_id)
 
-    def send_image(self, phone: str, image_url: str, caption: str = "") -> None:
+    def send_image(
+        self,
+        phone: str,
+        image_url: str,
+        caption: str = "",
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
         to_id = self._recipient_digits(phone)
+        pnid = (from_phone_number_id or self.phone_number_id or "").strip()
         payload: dict = {
             "messaging_product": "whatsapp",
             "to": to_id,
@@ -105,7 +139,9 @@ class WhatsAppCloudGateway(WhatsAppGateway):
         cap = (caption or "").strip()
         if cap:
             payload["image"]["caption"] = cap[:1024]
-        response = httpx.post(self.base_url, headers=headers, json=payload, timeout=20.0)
+        response = httpx.post(
+            self._messages_url(pnid), headers=headers, json=payload, timeout=20.0
+        )
         response.raise_for_status()
 
     def send_broadcast(self, phones: Iterable[str], text: str) -> None:

@@ -9,10 +9,23 @@ class FakeWhatsAppGateway(WhatsAppGateway):
         self.sent_images: list[tuple[str, str, str]] = []
         self.broadcasts: list[tuple[list[str], str]] = []
 
-    def send_message(self, phone: str, text: str) -> None:
+    def send_message(
+        self,
+        phone: str,
+        text: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
         self.sent_messages.append((phone, text))
 
-    def send_image(self, phone: str, image_url: str, caption: str = "") -> None:
+    def send_image(
+        self,
+        phone: str,
+        image_url: str,
+        caption: str = "",
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
         self.sent_images.append((phone, image_url, caption))
 
     def send_broadcast(self, phones: Iterable[str], text: str) -> None:

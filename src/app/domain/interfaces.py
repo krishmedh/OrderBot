@@ -30,10 +30,23 @@ class OrderRepository(ABC):
 
 class WhatsAppGateway(ABC):
     @abstractmethod
-    def send_message(self, phone: str, text: str) -> None:
+    def send_message(
+        self,
+        phone: str,
+        text: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
         raise NotImplementedError
 
-    def send_image(self, phone: str, image_url: str, caption: str = "") -> None:
+    def send_image(
+        self,
+        phone: str,
+        image_url: str,
+        caption: str = "",
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
         """Optional: send an image message (default no-op for simple gateways)."""
         return None
 
