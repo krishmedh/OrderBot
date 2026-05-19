@@ -47,6 +47,12 @@ class Settings(BaseModel):
     whatsapp_access_token: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
     whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
     whatsapp_api_version: str = os.getenv("WHATSAPP_API_VERSION", "v19.0")
+    whatsapp_typing_indicator: bool = os.getenv("WHATSAPP_TYPING_INDICATOR", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
     # Meta app dashboard: App secret — used to verify X-Hub-Signature-256 on POST webhooks.
     meta_app_secret: str = os.getenv("META_APP_SECRET", "")
     # Same as Meta "Verify token" when you configure the webhook callback URL (GET challenge).

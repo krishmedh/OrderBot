@@ -8,6 +8,7 @@ class FakeWhatsAppGateway(WhatsAppGateway):
         self.sent_messages: list[tuple[str, str]] = []
         self.sent_images: list[tuple[str, str, str]] = []
         self.broadcasts: list[tuple[list[str], str]] = []
+        self.typing_indicators: list[tuple[str, str | None]] = []
 
     def send_message(
         self,
@@ -27,6 +28,14 @@ class FakeWhatsAppGateway(WhatsAppGateway):
         from_phone_number_id: str | None = None,
     ) -> None:
         self.sent_images.append((phone, image_url, caption))
+
+    def mark_read_and_show_typing(
+        self,
+        message_id: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
+        self.typing_indicators.append((message_id, from_phone_number_id))
 
     def send_broadcast(self, phones: Iterable[str], text: str) -> None:
         self.broadcasts.append((list(phones), text))

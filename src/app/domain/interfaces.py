@@ -50,6 +50,15 @@ class WhatsAppGateway(ABC):
         """Optional: send an image message (default no-op for simple gateways)."""
         return None
 
+    def mark_read_and_show_typing(
+        self,
+        message_id: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
+        """Optional: mark inbound message read and show WhatsApp typing indicator."""
+        return None
+
     @abstractmethod
     def send_broadcast(self, phones: Iterable[str], text: str) -> None:
         raise NotImplementedError

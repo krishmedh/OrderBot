@@ -116,6 +116,39 @@ class WhatsAppCloudGateway(WhatsAppGateway):
     ) -> None:
         self._send_text(phone, text, from_phone_number_id=from_phone_number_id)
 
+    def mark_read_and_show_typing(
+        self,
+        message_id: str,
+        *,
+        from_phone_number_id: str | None = None,
+    ) -> None:
+        """Mark inbound message read and show the WhatsApp typing indicator (loader)."""
+        mid = (message_id or "").strip()
+        if not mid:
+            return
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        pnid = (from_phone_number_id or self.phone_number_id or "").strip()
+        payload = {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": mid,
+            "typing_indicator": {"type": "text"},
+        }
+        url = self._messages_url(pnid)
+        response = httpx.post(url, headers=headers, json=payload, timeout=10.0)
+        if response.is_error:
+            logger.error(
+                "WhatsApp Graph API typing indicator failed status=%s phone_number_id=%s message_id=%s body=%s",
+                response.status_code,
+                pnid,
+                mid,
+                response.text[:2000],
+            )
+            return
+
     def send_image(
         self,
         phone: str,
